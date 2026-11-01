@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThreadStorm — Multithreaded Web Server & Synchronization Intelligence Platform</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-container">
+      <div class="brand-logo">TS</div>
+      <div class="brand-title">
+        <h1>ThreadStorm <span>⚡</span></h1>
+        <p>Real-Time Multithreaded Server & Synchronization Intelligence</p>
+      </div>
+    </div>
+    <div class="header-status-group">
+      <div id="liveSyncBadge" class="server-badge" style="background:rgba(30,41,59,0.7); border-color:rgba(148,163,184,0.2);">
+        <span style="font-family:var(--font-mono); font-size:0.75rem; color:#94a3b8;">SYNC: <strong id="lastSyncTime" style="color:#38bdf8;">--:--:--</strong></span>
+      </div>
+      <div id="serverStatusBadge" class="server-badge">
+        <span class="pulse-dot"></span>
+        <span id="serverStatusText">CONNECTING...</span>
+      </div>
+      <div class="poll-toggle">
+        <span>Refresh:</span>
+        <select id="pollRateSelect" class="poll-select">
+          <option value="500">500 ms (Fast)</option>
+          <option value="1000" selected>1 sec (Normal)</option>
+          <option value="2000">2 sec (Relaxed)</option>
+          <option value="0">Paused</option>
+        </select>
+      </div>
+      <button id="btnExportJson" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;">Export JSON</button>
+      <button id="btnExportCsv" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;">Export CSV</button>
+    </div>
+  </header>
+
+  <!-- Navigation Bar (10 Sections) -->
+  <nav class="app-nav">
+    <button class="nav-tab active" data-tab="overview">⚡ 1. Overview</button>
+    <button class="nav-tab" data-tab="monitor">📊 2. Live Server Monitor</button>
+    <button class="nav-tab" data-tab="threads">🧵 3. Thread Pool Visualizer</button>
+    <button class="nav-tab" data-tab="requests">🌐 4. HTTP Request Explorer</button>
+    <button class="nav-tab" data-tab="sync-lab">🔬 5. Synchronization Lab</button>
+    <button class="nav-tab" data-tab="load-test">🚀 6. Load Testing</button>
+    <button class="nav-tab" data-tab="performance">⚖️ 7. Performance Comparison</button>
+    <button class="nav-tab" data-tab="security">🛡️ 8. Security Events</button>
+    <button class="nav-tab" data-tab="explain">💡 9. Explain Mode</button>
+    <button class="nav-tab" data-tab="co-learning">🎓 10. CO1–CO4 Learning Center</button>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+
+    <!-- ── TAB 1: OVERVIEW ── -->
+    <section id="tab-overview" class="tab-pane active">
+      <!-- High-Density Cloud Telemetry Cards (Row 1 & Row 2) -->
+      <div class="grid-cols-4">
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Server Uptime</span>
+            <div class="stat-icon">⏱️</div>
+          </div>
+          <div id="statUptime" class="stat-value">0s</div>
+          <div class="stat-subtext">Monotonic QPC clock (Native C)</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Current Throughput</span>
+            <div class="stat-icon">⚡</div>
+          </div>
+          <div id="statRps" class="stat-value">0</div>
+          <div class="stat-subtext">Requests / sec (1s rolling window)</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Average Latency</span>
+            <div class="stat-icon">🎯</div>
+          </div>
+          <div id="statAvgLat" class="stat-value">0.00 ms</div>
+          <div id="statMinMaxLat" class="stat-subtext">Min: 0 ms / Max: 0 ms</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Total HTTP Requests</span>
+            <div class="stat-icon">📈</div>
+          </div>
+          <div id="statTotalReq" class="stat-value">0</div>
+          <div class="stat-subtext">Atomic Interlocked counter</div>
+        </div>
+      </div>
+
+      <!-- CO3 Hardware Telemetry Grid (RAM, Peak RAM, CPU, Active Conns) -->
+      <div class="grid-cols-4" style="margin-top: 1rem;">
+        <div class="card stat-card" style="border-left: 3px solid #38bdf8;">
+          <div class="stat-header">
+            <span class="stat-label">Physical RAM (Working Set)</span>
+            <div class="stat-icon">💾</div>
+          </div>
+          <div id="statRamWs" class="stat-value" style="color:#38bdf8;">0 KB</div>
+          <div class="stat-subtext">Live Windows API: GetProcessMemoryInfo</div>
+        </div>
+        <div class="card stat-card" style="border-left: 3px solid #a855f7;">
+          <div class="stat-header">
+            <span class="stat-label">Peak RAM Committed</span>
+            <div class="stat-icon">📊</div>
+          </div>
+          <div id="statRamPeak" class="stat-value" style="color:#a855f7;">0 KB</div>
+          <div class="stat-subtext">Max physical footprint recorded</div>
+        </div>
+        <div class="card stat-card" style="border-left: 3px solid #34d399;">
+          <div class="stat-header">
+            <span class="stat-label">Process CPU Usage</span>
+            <div class="stat-icon">⚙️</div>
+          </div>
+          <div id="statCpu" class="stat-value" style="color:#34d399;">0.0%</div>
+          <div class="stat-subtext">Kernel + User CPU delta via Win32</div>
+        </div>
+        <div class="card stat-card" style="border-left: 3px solid #fbbf24;">
+          <div class="stat-header">
+            <span class="stat-label">Active TCP Connections</span>
+            <div class="stat-icon">🔗</div>
+          </div>
+          <div id="statActiveConn" class="stat-value" style="color:#fbbf24;">0</div>
+          <div class="stat-subtext">Live open client sockets</div>
+        </div>
+      </div>
+
+      <div class="grid-cols-2" style="margin-top: 1rem;">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Real-Time Throughput (RPS)</div>
+              <div class="card-subtitle">Last 60 seconds rolling throughput window from C ring buffer</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="rpsLiveChart" class="live-chart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">HTTP Response Code Distribution</div>
+              <div class="card-subtitle">Live status code tally partitioned into standard HTTP classes</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="statusLiveChart" class="live-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">System Architecture & Synchronization Topology</div>
+            <div class="card-subtitle">Native Win32 multithreading with Winsock 2.2 non-blocking I/O</div>
+          </div>
+          <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-cyan); background:rgba(6,182,212,0.1); padding:0.25rem 0.6rem; border-radius:4px; border:1px solid rgba(6,182,212,0.25);">Pure C11 • Win32 API</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1rem; margin-top:0.5rem;">
+          <div class="explain-card" style="border-left-color: var(--accent-purple);">
+            <h4>1. Bounded Queue & Non-Blocking I/O</h4>
+            <p>Master TCP accept thread places incoming connections into a bounded ring buffer protected by <code>CRITICAL_SECTION</code> and <code>CONDITION_VARIABLE</code> signaling.</p>
+          </div>
+          <div class="explain-card" style="border-left-color: var(--accent-cyan);">
+            <h4>2. Pre-Allocated Worker Thread Pool</h4>
+            <p>Workers sleep on condition variables without CPU spin-lock burn, instantly waking upon incoming request arrival to process HTTP requests concurrently.</p>
+          </div>
+          <div class="explain-card" style="border-left-color: #10b981;">
+            <h4>3. Real-Time OS & Memory Telemetry</h4>
+            <p>Direct Win32 kernel counters (<code>GetProcessMemoryInfo</code>, <code>GetProcessTimes</code>) stream live hardware consumption with zero simulated numbers.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 2: LIVE SERVER MONITOR ── -->
+    <section id="tab-monitor" class="tab-pane">
+      <div class="grid-cols-4">
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Active TCP Connections</span>
+            <div class="stat-icon">🔗</div>
+          </div>
+          <div id="statActiveConn2" class="stat-value">0</div>
+          <div class="stat-subtext">Currently open client sockets</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Success Rate (2xx)</span>
+            <div class="stat-icon">✅</div>
+          </div>
+          <div id="statSuccessRate" class="stat-value">100%</div>
+          <div class="stat-subtext">Ratio of successful HTTP responses</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Queue Capacity Fill</span>
+            <div class="stat-icon">📦</div>
+          </div>
+          <div id="statQueueDepth" class="stat-value">0 / 64</div>
+          <div id="statQueueMemText" class="stat-subtext">Heap: 0 KB bounded</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">Adaptive Pool Status</span>
+            <div class="stat-icon">⚙️</div>
+          </div>
+          <div id="adaptiveStatusText" class="stat-value" style="font-size:1.4rem; color:var(--accent-purple-light);">DISABLED</div>
+          <div id="adaptiveReasonText" class="stat-subtext">Fixed worker allocation</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Request Queue Depth Meter & Bounded Memory (CO3)</div>
+            <div class="card-subtitle">Real-time occupancy of the bounded request queue (back-pressure indicator)</div>
+          </div>
+          <span id="queueFillPctBadge" style="font-family:var(--font-mono); font-size:0.8rem; color:#34d399; font-weight:700;">0% FILL</span>
+        </div>
+        <div class="progress-bar-container" style="height: 14px;">
+          <div id="queueProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-dim); margin-top:0.4rem;">
+          <span>0 (Empty - Workers Waiting)</span>
+          <span>Warning Threshold (75%)</span>
+          <span>Max Capacity (Drops Connection)</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Autonomous Adaptive Pool Controller</div>
+            <div class="card-subtitle">Monitors queue depth & latency to dynamically scale worker threads up or down</div>
+          </div>
+          <button id="btnToggleAdaptive" class="btn btn-primary">Enable Adaptive Pool</button>
+        </div>
+        <p style="font-size:0.85rem; color:#cbd5e1; margin-top:0.5rem; line-height:1.6;">
+          When enabled, a background controller thread runs every 1000 ms. If queue depth > 2 with 0 idle workers, it spawns an additional worker thread (up to 32 max). If idle workers > 1 with 0 queue depth, it gracefully scales down with a 2-second cooldown to prevent thrashing.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── TAB 3: THREAD POOL VISUALIZER ── -->
+    <section id="tab-threads" class="tab-pane">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Active Worker Thread State Visualizer</div>
+            <div class="card-subtitle">Direct live telemetry of worker states from the C thread-pool descriptor table</div>
+          </div>
+        </div>
+        <div id="workerGrid" class="worker-grid">
+          <!-- Worker cards dynamically populated by JavaScript -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Worker Thread Lifecycle & Synchronization Architecture</div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:1rem;">
+          <div class="explain-card">
+            <h4>💤 IDLE (Waiting on CV)</h4>
+            <p>The worker thread holds no locks and is blocked inside Windows <code>SleepConditionVariableCS(&not_empty, &lock, INFINITE)</code>. Consumes 0% CPU while awaiting incoming network sockets.</p>
+          </div>
+          <div class="explain-card" style="border-left-color: #fbbf24;">
+            <h4>⚡ BUSY (Handling HTTP)</h4>
+            <p>Dequeued a client socket from the bounded buffer, releases the queue lock, parses HTTP/1.1 headers, executes static file or API routing, streams the TCP payload, and closes the socket.</p>
+          </div>
+          <div class="explain-card" style="border-left-color: #94a3b8;">
+            <h4>🛑 STOPPED / SHUTDOWN</h4>
+            <p>The server received SIGINT/Ctrl-C. <code>rq_signal_shutdown()</code> broadcast <code>WakeAllConditionVariable()</code> to wake all workers; workers observe <code>shutdown == true</code> and exit cleanly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 4: HTTP REQUEST EXPLORER ── -->
+    <section id="tab-requests" class="tab-pane">
+      <div class="card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <div class="card-title">Live Request Stream & Telemetry</div>
+            <div class="card-subtitle">Real-time log of the latest 50 completed HTTP requests from the server's ring buffer</div>
+          </div>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <input type="text" id="eventSearchInput" placeholder="Filter by URI / Method..." class="form-input" style="width:200px; padding:0.4rem 0.6rem; font-size:0.8rem;">
+            <select id="eventFilterSelect" class="form-select" style="width:130px; padding:0.4rem 0.6rem; font-size:0.8rem;">
+              <option value="all">All Statuses</option>
+              <option value="2xx">2xx Success</option>
+              <option value="err">Errors (4xx/5xx)</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Req ID</th>
+                <th>Method</th>
+                <th>URI / Endpoint</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Processed By</th>
+                <th>Completed At</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTableBody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 5: SYNCHRONIZATION LAB ── -->
+    <section id="tab-sync-lab" class="tab-pane">
+      <div class="grid-cols-2">
+        <!-- Race Condition Arena -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">⚔️ Race Condition Arena</div>
+              <div class="card-subtitle">Controlled C experiment comparing unsynchronized updates vs mutual exclusion</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Thread Count:</label>
+              <select id="raceThreadsSelect" class="form-select">
+                <option value="2">2 Threads</option>
+                <option value="4" selected>4 Threads</option>
+                <option value="8">8 Threads</option>
+                <option value="16">16 Threads</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Iterations per Thread:</label>
+              <select id="raceItersSelect" class="form-select">
+                <option value="50000">50,000</option>
+                <option value="100000" selected>100,000</option>
+                <option value="500000">500,000</option>
+              </select>
+            </div>
+          </div>
+          <button id="btnRunRace" class="btn btn-primary" style="width:100%;">Run Race Arena Experiment</button>
+
+          <div id="raceResultCard" style="display:none; margin-top:1.25rem;">
+            <div id="raceDetectionBadge" style="padding:0.4rem 0.8rem; border-radius:var(--radius-sm); font-size:0.8rem; font-weight:700; margin-bottom:0.75rem; text-align:center;"></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.5rem; text-align:center; margin-bottom:1rem;">
+              <div style="background:rgba(255,255,255,0.03); padding:0.6rem; border-radius:6px;">
+                <div style="font-size:0.7rem; color:var(--text-dim);">EXPECTED</div>
+                <div id="raceExpVal" style="font-family:var(--font-mono); font-weight:700; color:var(--text-main); font-size:1.1rem;">-</div>
+              </div>
+              <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); padding:0.6rem; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#f87171;">UNSAFE (NO LOCK)</div>
+                <div id="raceUnsafeVal" style="font-family:var(--font-mono); font-weight:700; color:#f87171; font-size:1.1rem;">-</div>
+                <div id="raceTimeUnsafe" style="font-size:0.7rem; color:var(--text-dim);">-</div>
+              </div>
+              <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); padding:0.6rem; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#34d399;">SAFE (MUTEX)</div>
+                <div id="raceSafeVal" style="font-family:var(--font-mono); font-weight:700; color:#34d399; font-size:1.1rem;">-</div>
+                <div id="raceTimeSafe" style="font-size:0.7rem; color:var(--text-dim);">-</div>
+              </div>
+            </div>
+            <div id="raceExplanation" class="explain-card" style="font-size:0.8rem; color:#cbd5e1; border-left-color:var(--accent-purple);"></div>
+          </div>
+        </div>
+
+        <!-- Deadlock Handling & Prevention Lab (CO3) -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔒 Deadlock Handling & Prevention Lab (CO3)</div>
+              <div class="card-subtitle">Runtime deadlock detection & timed backoff recovery vs. strict lock hierarchy</div>
+            </div>
+            <span style="font-family:var(--font-mono); font-size:0.75rem; color:#34d399; background:rgba(16,185,129,0.1); padding:0.2rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.3);">CO3 Requirement</span>
+          </div>
+          <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:1rem; line-height:1.5;">
+            Coffman's 4th condition is <strong>Circular Wait</strong>. When Thread 1 holds A and waits for B, while Thread 2 holds B and waits for A, a permanent freeze occurs. We demonstrate both: 
+            <strong>(1) Deadlock Detection & Timed Backoff Recovery</strong> (breaks Hold & Wait) and 
+            <strong>(2) Deadlock Prevention</strong> (Strict linear lock hierarchy: A &rarr; B).
+          </p>
+          <div class="code-box" style="margin-bottom:1rem; font-size:0.75rem;">
+// 1. DETECTION & RECOVERY: TryEnterCriticalSection() + timeout detection -> release held lock + backoff
+// 2. PREVENTION HIERARCHY: Always acquire Lock A before Lock B -> zero circular wait
+EnterCriticalSection(&g_resource_A);
+EnterCriticalSection(&g_resource_B);
+g_counter++; // Safe execution
+LeaveCriticalSection(&g_resource_B);
+LeaveCriticalSection(&g_resource_A);
+          </div>
+          <button id="btnRunDeadlock" class="btn btn-cyan" style="width:100%;">Run Deadlock Detection, Recovery & Prevention Demo</button>
+
+          <div id="deadlockResultCard" style="display:none; margin-top:1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:0.85rem; color:var(--text-muted);">Result: <strong id="deadlockStatus" style="color:#34d399;">-</strong></span>
+              <span style="font-size:0.85rem; color:var(--text-muted);">Total Time: <strong id="deadlockTime" style="color:var(--accent-cyan);">-</strong></span>
+            </div>
+
+            <!-- Dual Metrics: Detection/Recovery vs Prevention -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+              <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); padding:0.75rem; border-radius:6px;">
+                <div style="font-size:0.75rem; color:#f87171; font-weight:700; margin-bottom:0.3rem;">1. DETECTION & RECOVERY</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);">Deadlocks Detected: <strong id="deadlockDetectedCount" style="color:#f87171; font-family:var(--font-mono);">-</strong></div>
+                <div style="font-size:0.75rem; color:var(--text-dim);">Recoveries Executed: <strong id="deadlockRecoveryCount" style="color:#34d399; font-family:var(--font-mono);">-</strong></div>
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-top:0.2rem;">Counter: <span id="deadlockUnsafeCounter" style="font-family:var(--font-mono); color:#f8fafc;">-</span> (<span id="deadlockUnsafeTime">-</span>)</div>
+              </div>
+              <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:0.75rem; border-radius:6px;">
+                <div style="font-size:0.75rem; color:#34d399; font-weight:700; margin-bottom:0.3rem;">2. PREVENTION (SAFE ORDER)</div>
+                <div style="font-size:0.75rem; color:var(--text-dim);">Deadlocks Detected: <strong style="color:#34d399; font-family:var(--font-mono);">0 (Eliminated)</strong></div>
+                <div style="font-size:0.75rem; color:var(--text-dim);">Lock Hierarchy: <strong style="color:#38bdf8; font-family:var(--font-mono);">Lock A &rarr; Lock B</strong></div>
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-top:0.2rem;">Counter: <span id="deadlockSafeCounter" style="font-family:var(--font-mono); color:#34d399;">-</span> (<span id="deadlockSafeTime">-</span>)</div>
+              </div>
+            </div>
+
+            <div id="deadlockExplanation" class="explain-card" style="font-size:0.8rem; white-space:pre-line; color:#cbd5e1; border-left-color:var(--accent-cyan);"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 6: LOAD TESTING ── -->
+    <section id="tab-load-test" class="tab-pane">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Native C Load & Stress Test Generator</div>
+            <div class="card-subtitle">Fires real concurrent HTTP requests against localhost:8080 and records high-resolution metrics</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+          <div class="form-group">
+            <label class="form-label">Total Requests:</label>
+            <select id="benchReqCount" class="form-select">
+              <option value="50">50 Requests</option>
+              <option value="100" selected>100 Requests</option>
+              <option value="250">250 Requests</option>
+              <option value="500">500 Requests</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Concurrency (Threads):</label>
+            <select id="benchConcurrency" class="form-select">
+              <option value="1">1 Thread (Sequential)</option>
+              <option value="2">2 Threads</option>
+              <option value="4" selected>4 Threads</option>
+              <option value="8">8 Threads</option>
+              <option value="16">16 Threads</option>
+            </select>
+          </div>
+        </div>
+        <button id="btnRunBench" class="btn btn-primary" style="width:100%;">Launch C Multithreaded Load Test</button>
+
+        <div id="benchResultCard" style="display:none; margin-top:1.5rem;">
+          <div class="grid-cols-4">
+            <div class="card stat-card" style="background:rgba(0,0,0,0.3);">
+              <span class="stat-label">Throughput</span>
+              <div id="benchRps" class="stat-value" style="color:var(--accent-cyan-light);">-</div>
+              <div class="stat-subtext">Requests per second</div>
+            </div>
+            <div class="card stat-card" style="background:rgba(0,0,0,0.3);">
+              <span class="stat-label">Total Duration</span>
+              <div id="benchDuration" class="stat-value">-</div>
+              <div class="stat-subtext">End-to-end elapsed time</div>
+            </div>
+            <div class="card stat-card" style="background:rgba(0,0,0,0.3);">
+              <span class="stat-label">Average Latency</span>
+              <div id="benchAvgLat" class="stat-value">-</div>
+              <div class="stat-subtext">Per-request response time</div>
+            </div>
+            <div class="card stat-card" style="background:rgba(0,0,0,0.3);">
+              <span class="stat-label">Completed / Failed</span>
+              <div class="stat-value"><span id="benchCompleted" style="color:#34d399;">0</span> / <span id="benchFailed" style="color:#f87171;">0</span></div>
+              <div class="stat-subtext">HTTP completion status</div>
+            </div>
+          </div>
+
+          <div class="card" style="background:rgba(0,0,0,0.2); margin-top:1rem;">
+            <div class="card-title" style="font-size:0.9rem; margin-bottom:0.75rem;">Latency Percentile Breakdown</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; text-align:center;">
+              <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:6px;">
+                <div style="color:var(--text-dim); font-size:0.75rem;">p50 (Median)</div>
+                <div id="benchP50" style="font-family:var(--font-mono); font-size:1.2rem; font-weight:700; color:#38bdf8;">-</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:6px;">
+                <div style="color:var(--text-dim); font-size:0.75rem;">p95</div>
+                <div id="benchP95" style="font-family:var(--font-mono); font-size:1.2rem; font-weight:700; color:#fbbf24;">-</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:6px;">
+                <div style="color:var(--text-dim); font-size:0.75rem;">p99 (Tail Latency)</div>
+                <div id="benchP99" style="font-family:var(--font-mono); font-size:1.2rem; font-weight:700; color:#f87171;">-</div>
+              </div>
+            </div>
+            <div id="benchNote" style="font-size:0.75rem; color:var(--text-dim); margin-top:0.75rem; text-align:center;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 7: PERFORMANCE COMPARISON ── -->
+    <section id="tab-performance" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Sequential (1 Thread) vs Multithreaded (4 Threads) Benchmark</div>
+            <div class="card-subtitle">Automated comparative test executing 100 requests sequentially vs concurrently</div>
+          </div>
+          <button id="btnRunComparison" class="btn btn-cyan">Run Full Comparison Suite</button>
+        </div>
+
+        <div id="comparisonResultsContainer" style="display:none; margin-top:1.5rem;">
+          <div style="text-align:center; margin-bottom:1.5rem;">
+            <span id="cmpSpeedupBadge" style="display:inline-block; padding:0.5rem 1.25rem; border-radius:9999px; background:rgba(34, 211, 238, 0.15); border:1px solid rgba(34, 211, 238, 0.4); color:var(--accent-cyan-light); font-size:1.1rem; font-weight:700; font-family:var(--font-mono);">
+              -
+            </span>
+          </div>
+
+          <div class="grid-cols-2">
+            <div class="card" style="border-color: rgba(148, 163, 184, 0.3);">
+              <div class="card-header">
+                <div class="card-title" style="color:#94a3b8;">Single Thread (Sequential)</div>
+                <span class="method-badge">1 THREAD</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Throughput:</span>
+                  <strong id="cmpSeqRps" style="font-family:var(--font-mono);">-</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Average Latency:</span>
+                  <strong id="cmpSeqLat" style="font-family:var(--font-mono);">-</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Total Duration:</span>
+                  <strong id="cmpSeqTime" style="font-family:var(--font-mono);">-</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="border-color: rgba(6, 182, 212, 0.5); box-shadow:var(--shadow-glow-cyan);">
+              <div class="card-header">
+                <div class="card-title" style="color:var(--accent-cyan-light);">ThreadPool (Concurrent)</div>
+                <span class="method-badge get">4 WORKERS</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Throughput:</span>
+                  <strong id="cmpConRps" style="font-family:var(--font-mono); color:var(--accent-cyan);">-</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Average Latency:</span>
+                  <strong id="cmpConLat" style="font-family:var(--font-mono); color:var(--accent-cyan);">-</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                  <span style="color:var(--text-dim);">Total Duration:</span>
+                  <strong id="cmpConTime" style="font-family:var(--font-mono); color:var(--accent-cyan);">-</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="explain-card" style="border-left-color:var(--accent-cyan); margin-top:1.5rem;">
+            <h4>Theoretical & Empirical Performance Analysis</h4>
+            <p>
+              In a single-threaded server, each connection suffers from sequential blocking (head-of-line blocking). While the CPU executes socket reads and file I/O for client #1, clients #2-#100 stall in the kernel backlog. In ThreadStorm's multithreaded pool, 4 separate OS threads utilize multi-core parallelism, enabling concurrent request processing and drastically slashing total job completion time.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 8: SECURITY EVENTS ── -->
+    <section id="tab-security" class="tab-pane">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Interactive Security Exploit Simulator</div>
+            <div class="card-subtitle">Click to fire simulated attacks and observe ThreadStorm's defensive filters in real time</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <button id="btnSimTraversal" class="btn btn-danger">Simulate Path Traversal (/../../../etc/passwd)</button>
+          <button id="btnSimBadMethod" class="btn btn-secondary">Simulate Unsupported Method (DELETE)</button>
+          <button id="btnSimOverflow" class="btn btn-secondary">Simulate Oversized URI Attack</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Live Security Audit Log</div>
+            <div class="card-subtitle">Automated defense records captured by <code>metrics_security_event()</code> in C</div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Attack Type</th>
+                <th>Attempt Details</th>
+                <th>Defense Action Taken</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="securityTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 9: EXPLAIN MODE ── -->
+    <section id="tab-explain" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">💡 Deep Dive Explain Mode</div>
+            <div class="card-subtitle">Under the hood mechanisms: Operating system concurrency & Winsock internals</div>
+          </div>
+        </div>
+
+        <div class="explain-card">
+          <h4>Q1: Why is a request waiting in the bounded queue?</h4>
+          <p>
+            When incoming HTTP request bursts exceed the active worker capacity (e.g., 20 client connections arrive simultaneously while all 4 worker threads are currently serving sockets), the listener thread enqueues client sockets into the FIFO queue. If the queue reaches capacity (64 slots), ThreadStorm applies <strong>back-pressure</strong> and safely drops new connections to protect process memory.
+          </p>
+        </div>
+
+        <div class="explain-card">
+          <h4>Q2: How does a worker thread wake up without spinning?</h4>
+          <p>
+            Instead of busy-waiting (which would consume 100% CPU on all cores), ThreadStorm uses Windows Condition Variables:
+          </p>
+          <div class="code-box">
+// Worker waits in kernel sleep:
+while (q->count == 0 && !q->shutdown) {
+    SleepConditionVariableCS(&q->not_empty, &q->lock, INFINITE);
+}
+// Accept thread signals upon new socket:
+WakeConditionVariable(&q->not_empty);
+          </div>
+        </div>
+
+        <div class="explain-card">
+          <h4>Q3: Why are CRITICAL_SECTIONs used instead of global mutexes?</h4>
+          <p>
+            A Windows <code>CRITICAL_SECTION</code> is a user-mode synchronization primitive with kernel fallback. Unlike a kernel <code>HANDLE</code> mutex, entering an uncontended critical section executes in user space via fast atomic instructions (under 10 nanoseconds) without triggering an expensive kernel transition context switch.
+          </p>
+        </div>
+
+        <div class="explain-card">
+          <h4>Q4: How does Canonicalization prevent Directory Traversal?</h4>
+          <p>
+            An attacker sending <code>GET /../../windows/system.ini</code> attempts to escape the <code>public/</code> folder. ThreadStorm uses Windows <code>GetFullPathNameA()</code> to resolve all <code>..</code> segments into an absolute path, then verifies that the resolved path strictly begins with the root public directory prefix. Any mismatch triggers an immediate 403 Forbidden and logs a security event.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 10: CO1–CO4 LEARNING CENTER ── -->
+    <section id="tab-co-learning" class="tab-pane">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🎓 Course Outcomes (CO1–CO4) Mapping & Viva Guide</div>
+            <div class="card-subtitle">Comprehensive academic mapping for College Micro Project 03 Evaluation</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-bottom:1.5rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:120px;">Outcome</th>
+                <th>Curriculum Competency</th>
+                <th>ThreadStorm Implementation Details</th>
+                <th>Measured vs Conceptual</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="co-badge co-1">CO1</span></td>
+                <td><strong>Interpret OS architecture & hardware interaction</strong></td>
+                <td>
+                  Direct Winsock <code>socket()</code>, <code>bind()</code>, <code>listen()</code>, <code>accept()</code> lifecycle. Hardware-level high-precision monotonic timing using <code>QueryPerformanceCounter()</code>.
+                </td>
+                <td><span style="color:#34d399; font-weight:600;">Directly Measured (QPC, Latency)</span></td>
+              </tr>
+              <tr>
+                <td><span class="co-badge co-2">CO2</span></td>
+                <td><strong>Choose scheduling & synchronization for concurrency</strong></td>
+                <td>
+                  Producer-Consumer pattern with bounded ring buffer. Mutex (<code>CRITICAL_SECTION</code>) protection, condition variable signaling (<code>SleepConditionVariableCS</code> / <code>WakeConditionVariable</code>).
+                </td>
+                <td><span style="color:#34d399; font-weight:600;">Directly Measured (Worker States, Race Arena)</span></td>
+              </tr>
+              <tr>
+                <td><span class="co-badge co-3">CO3</span></td>
+                <td><strong>Use deadlock handling & memory management</strong></td>
+                <td>
+                  Deadlock prevention via total resource lock ordering (Resource A &rarr; Resource B). Bounded heap allocation for request queue preventing virtual memory thrashing. Graceful shutdown teardown.
+                </td>
+                <td><span style="color:#34d399; font-weight:600;">Demonstrated & Measured</span></td>
+              </tr>
+              <tr>
+                <td><span class="co-badge co-4">CO4</span></td>
+                <td><strong>Evaluate virtual memory, file, and security mechanisms</strong></td>
+                <td>
+                  Path canonicalization via <code>GetFullPathNameA</code>, strict HTTP header size validation (8 KB limits), MIME type resolution, directory traversal prevention.
+                </td>
+                <td><span style="color:#34d399; font-weight:600;">Directly Measured (Security Audit Log)</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-title" style="margin-bottom: 1rem;">Top College Viva Questions & Model Answers</div>
+        <div style="display:flex; flex-direction:column; gap:1rem;">
+          <div class="explain-card">
+            <h4>Q1: What is a data race, and how does your Race Condition Arena prove it?</h4>
+            <p><strong>Answer:</strong> A data race occurs when two or more concurrent threads access a shared memory location simultaneously without synchronization, and at least one access is a write. In our Race Arena, multiple threads execute <code>counter++</code> (which compiles into 3 assembly instructions: READ, MODIFY, WRITE). Because these instructions interleave unpredictably across CPU cores, updates are overwritten and lost. When wrapped with <code>EnterCriticalSection()</code>, atomicity is guaranteed and the counter reaches 100% of its expected value.</p>
+          </div>
+          <div class="explain-card">
+            <h4>Q2: What are the four Coffman conditions for Deadlock, and how is it prevented here?</h4>
+            <p><strong>Answer:</strong> The four conditions are: (1) Mutual Exclusion, (2) Hold and Wait, (3) No Preemption, and (4) Circular Wait. ThreadStorm breaks the 4th condition (Circular Wait) by enforcing a <em>strict linear lock hierarchy</em>: all threads must acquire Resource A before Resource B. Since no thread can hold B while waiting for A, a circular dependency cycle is mathematically impossible.</p>
+          </div>
+          <div class="explain-card">
+            <h4>Q3: Why is a thread pool superior to creating a new thread per request?</h4>
+            <p><strong>Answer:</strong> Spawning a new OS thread for every incoming connection incurs massive kernel overhead: 1 MB default stack allocation, context switching overhead, and thread creation latency (~1-2 ms). A thread pool pre-allocates a fixed number of reusable threads that stay alive, reducing latency to microseconds and preventing Out-Of-Memory crashes under high load.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div>ThreadStorm &mdash; College Micro Project 03 &bull; Systems & Concurrency Engineering</div>
+    <div style="font-family:var(--font-mono); color:var(--accent-cyan);">C11 &bull; Win32 API &bull; Winsock 2.2</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
